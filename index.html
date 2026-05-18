@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem e-OPR - Laporan Prestasi Operasi</title>
+    <!-- Tailwind CSS untuk reka bentuk visual yang moden -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons untuk ikon yang kemas -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* CSS Khusus untuk Cetakan (Print Styles) */
+        @media print {
+            body {
+                background-color: white;
+                color: black;
+                font-size: 12pt;
+            }
+            /* Sembunyikan elemen yang tidak perlu dicetak seperti butang, sidebar, navigasi */
+            .no-print {
+                display: none !important;
+            }
+            /* Pastikan kawasan cetakan mengambil ruang penuh */
+            .print-area {
+                width: 100%;
+                max-width: 100%;
+                margin: 0;
+                padding: 0;
+                box-shadow: none !important;
+                border: none !important;
+            }
+            /* Reka bentuk borang khusus semasa dicetak */
+            .print-page-break {
+                page-break-after: always;
+            }
+            .print-header {
+                display: flex !important;
+                align-items: center;
+                justify-content: space-between;
+                border-bottom: 2px solid #000;
+                padding-bottom: 10px;
+                margin-bottom: 20px;
+            }
+            input, select, textarea {
+                border: none !important;
+                border-bottom: 1px dashed #666 !important;
+                background: transparent !important;
+                padding: 2px !important;
+                resize: none;
+                width: 100%;
+            }
+            /* Hilangkan placeholder semasa mencetak */
+            input::placeholder, textarea::placeholder {
+                color: transparent !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- NAVIGASI ATAS (no-print) -->
+    <header class="bg-blue-900 text-white shadow-md no-print">
+        <div class="container mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-white p-2 rounded-lg text-blue-900">
+                    <i data-lucide="activity" class="w-8 h-8"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-wide">SISTEM e-OPR</h1>
+                    <p class="text-xs text-blue-200">Laporan Prestasi Operasi & Analisis Standard</p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="switchView('dashboard')" class="nav-btn bg-blue-800 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Papan Pemuka
+                </button>
+                <button onclick="createNewOpr()" class="nav-btn bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i> Borang Baru
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- UTAMA -->
+    <main class="flex-grow container mx-auto px-4 py-6">
+        
+        <!-- MASESJ NOTIFIKASI -->
+        <div id="toast" class="hidden fixed bottom-5 right-5 bg-emerald-600 text-white px-6 py-3 rounded-lg shadow-xl z-50 flex items-center gap-2 animate-bounce">
+            <i data-lucide="check-circle" class="w-5 h-5"></i>
+            <span id="toast-msg">Laporan Berjaya Disimpan!</span>
+        </div>
+
+        <!-- 1. SKRIN PAPAN PEMUKA (DASHBOARD) -->
+        <section id="dashboard-view" class="space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-900">Selamat Datang ke Portal e-OPR</h2>
+                    <p class="text-slate-500 mt-1">Sistem pengisian laporan prestasi operasi agensi. Semua maklumat boleh diisi dan dicetak dengan mudah.</p>
+                </div>
+                <button onclick="createNewOpr()" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium transition shadow-sm hover:shadow flex items-center justify-center gap-2">
+                    <i data-lucide="file-text" class="w-5 h-5"></i> Isi Laporan Sekarang
+                </button>
+            </div>
+
+            <!-- Ringkasan Statistik -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                    <div class="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                        <i data-lucide="folder-archive" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-400 font-medium">Jumlah Laporan</p>
+                        <h3 id="total-reports" class="text-2xl font-bold text-slate-800">0</h3>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                    <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                        <i data-lucide="trending-up" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-400 font-medium">Prestasi Purata</p>
+                        <h3 id="average-perf" class="text-2xl font-bold text-slate-800">0%</h3>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                    <div class="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                        <i data-lucide="alert-circle" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-slate-400 font-medium">Isu Aktif</p>
+                        <h3 id="total-issues" class="text-2xl font-bold text-slate-800">0</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Senarai Laporan -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="p-5 border-b border-slate-100 flex justify-between items-center">
+                    <h3 class="font-bold text-lg text-slate-900">Senarai Laporan Semasa</h3>
+                    <div class="relative w-64">
+                        <input type="text" id="search-input" oninput="filterReports()" placeholder="Cari laporan..." class="w-full pl-9 pr-4 py-1.5 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 text-xs uppercase font-semibold">
+                                <th class="p-4">Tarikh & Laporan</th>
+                                <th class="p-4">Jabatan / Sektor</th>
+                                <th class="p-4">Tajuk Projek/Operasi</th>
+                                <th class="p-4">Status Prestasi</th>
+                                <th class="p-4 text-right">Tindakan</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reports-table-body" class="divide-y divide-slate-100 text-sm">
+                            <!-- Data akan diisi menggunakan Javascript -->
+                            <tr id="empty-state">
+                                <td colspan="5" class="p-8 text-center text-slate-400">
+                                    <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-2 opacity-50"></i>
+                                    Tiada rekod laporan e-OPR ditemui. Sila buat laporan baharu.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. SKRIN BORANG & PAPARAN CETAKAN (FORM VIEW) -->
+        <section id="form-view" class="hidden max-w-4xl mx-auto">
+            <!-- Pilihan Kawalan Atas (Sembunyikan semasa cetak) -->
+            <div class="no-print flex justify-between items-center mb-6">
+                <button onclick="switchView('dashboard')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i> Kembali
+                </button>
+                <div class="flex gap-2">
+                    <button onclick="saveOpr(event)" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm">
+                        <i data-lucide="save" class="w-4 h-4"></i> Simpan Rekod
+                    </button>
+                    <button onclick="window.print()" class="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm">
+                        <i data-lucide="printer" class="w-4 h-4"></i> Cetak / Simpan PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- BORANG OPR UTAMA (Kawasan Cetakan Utama) -->
+            <form id="opr-form" class="print-area bg-white p-8 md:p-12 rounded-2xl shadow-md border border-slate-100 space-y-8">
+                
+                <!-- Kepala Surat Semasa Cetakan (Hanya muncul jika diprint) -->
+                <div class="hidden print-header">
+                    <div class="flex items-center gap-3">
+                        <div class="border border-black p-1 text-xs font-bold text-center">e-OPR SYSTEM</div>
+                        <div>
+                            <h2 class="text-base font-bold uppercase">LAPORAN PRESTASI OPERASI KERAJAAN / ORGANISASI</h2>
+                            <p class="text-xs text-gray-600">Dokumen Operasi Am dan Penilaian Kecekapan</p>
+                        </div>
+                    </div>
+                    <div class="text-right text-xs">
+                        <p><strong>Tarikh Cetak:</strong> <span class="current-date-span">--/--/----</span></p>
+                        <p><strong>No. Rujukan:</strong> <span id="ref-no-print">OPR-NEW</span></p>
+                    </div>
+                </div>
+
+                <!-- SEKSYEN A: MAKLUMAT UMUM -->
+                <div class="space-y-4">
+                    <h3 class="text-lg font-bold text-blue-900 border-b-2 border-blue-100 pb-2 flex items-center gap-2">
+                        <span class="bg-blue-900 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">A</span>
+                        Maklumat Umum & Organisasi
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Nama Jabatan / Sektor</label>
+                            <input type="text" id="dept-name" required placeholder="Sila masukkan nama jabatan" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Nama Unit / Cawangan</label>
+                            <input type="text" id="unit-name" required placeholder="cth: Unit Teknologi Maklumat" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Nama Pegawai Melapor</label>
+                            <input type="text" id="officer-name" required placeholder="Nama penuh pegawai bertanggungjawab" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Tarikh Penilaian Laporan</label>
+                            <input type="date" id="opr-date" required class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SEKSYEN B: MAKLUMAT OPERASI & PROJEK -->
+                <div class="space-y-4">
+                    <h3 class="text-lg font-bold text-blue-900 border-b-2 border-blue-100 pb-2 flex items-center gap-2">
+                        <span class="bg-blue-900 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">B</span>
+                        Maklumat Operasi / Projek Utama
+                    </h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Nama Projek / Aktiviti Operasi</label>
+                            <input type="text" id="project-title" required placeholder="Masukkan nama utama projek atau operasi yang dijalankan" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Objektif Operasi</label>
+                            <textarea id="project-objective" rows="3" required placeholder="Apakah matlamat utama operasi atau projek ini?" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SEKSYEN C: ANALISIS PRESTASI (KPI) -->
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center border-b-2 border-blue-100 pb-2">
+                        <h3 class="text-lg font-bold text-blue-900 flex items-center gap-2">
+                            <span class="bg-blue-900 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">C</span>
+                            Penunjuk Prestasi Utama (KPI)
+                        </h3>
+                        <button type="button" onclick="addKpiRow()" class="no-print bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs font-semibold px-3 py-1.5 rounded transition flex items-center gap-1">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Tambah KPI
+                        </button>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse border border-slate-200">
+                            <thead>
+                                <tr class="bg-slate-100 text-xs font-bold text-slate-600 uppercase border-b border-slate-200">
+                                    <th class="p-3 border-r border-slate-200">Perkara / Deskripsi KPI</th>
+                                    <th class="p-3 border-r border-slate-200 w-24 text-center">Sasaran</th>
+                                    <th class="p-3 border-r border-slate-200 w-24 text-center">Pencapaian</th>
+                                    <th class="p-3 border-r border-slate-200 w-24 text-center">% Prestasi</th>
+                                    <th class="p-3 text-center no-print w-16">Urus</th>
+                                </tr>
+                            </thead>
+                            <tbody id="kpi-tbody" class="divide-y divide-slate-200 text-sm">
+                                <!-- Baris KPI akan dijanakan secara dinamik -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SEKSYEN D: ISU & CABARAN UTAMA -->
+                <div class="space-y-4">
+                    <h3 class="text-lg font-bold text-blue-900 border-b-2 border-blue-100 pb-2 flex items-center gap-2">
+                        <span class="bg-blue-900 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">D</span>
+                        Isu, Kekangan & Tindakan Penambahbaikan
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Masalah / Kekangan Utama Yang Dihadapi</label>
+                            <textarea id="issues-encountered" rows="4" placeholder="Nyatakan sebarang masalah, kelewatan, kekangan bajet atau logistik yang dialami." class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Pelan Tindakan Alternatif / Penyelesaian</label>
+                            <textarea id="mitigation-plan" rows="4" placeholder="Bagaimana pihak tuan/puan menyelesaikan atau merancang untuk mengatasi kekangan di atas?" class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SEKSYEN E: PERAKUAN & TANDATANGAN -->
+                <div class="pt-8 border-t border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="space-y-4">
+                        <p class="text-xs text-slate-400 italic">Disediakan Secara Elektronik melalui Sistem Portal e-OPR.</p>
+                        <div class="border border-slate-200 rounded-xl p-4 bg-slate-50 no-print">
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-2">Penilaian Kendiri Keseluruhan</label>
+                            <select id="overall-status" class="w-full px-3 py-2 border border-slate-200 bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="Sangat Memuaskan">🟢 Sangat Memuaskan (90% - 100%)</option>
+                                <option value="Memuaskan">🔵 Memuaskan (75% - 89%)</option>
+                                <option value="Sederhana">🟡 Sederhana (50% - 74%)</option>
+                                <option value="Kritikal">🔴 Kritikal (Bawah 50%)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-col justify-end items-end space-y-12">
+                        <div class="text-center w-64">
+                            <div class="h-16 border-b border-dashed border-slate-400 flex items-center justify-center">
+                                <span class="text-xs text-slate-400 italic no-print">(Tandatangan Digital / Cetakan)</span>
+                            </div>
+                            <p class="text-sm font-bold text-slate-700 mt-2" id="signee-name">...................................................</p>
+                            <p class="text-xs text-slate-400">Pegawai Melaporkan</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Maklumat kaki semasa cetakan -->
+                <div class="hidden print:block text-center text-[10px] text-gray-400 pt-10 border-t border-gray-100">
+                    Laporan ini dijana dari portal e-OPR Pintar. Tiada tandatangan fizikal diperlukan sekiranya dihantar secara digital.
+                </div>
+            </form>
+        </section>
+
+    </main>
+
+    <!-- FOOTER (no-print) -->
+    <footer class="bg-slate-900 text-slate-400 py-6 border-t border-slate-800 text-center text-sm no-print">
+        <p>&copy; 2026 Sistem e-OPR Bersepadu. Sesuai digunakan untuk semua agensi awam & swasta.</p>
+        <p class="text-xs text-slate-600 mt-1">Sistem sedia cetak dengan fungsi muat turun PDF pintar.</p>
+    </footer>
+
+    <!-- SCRIPT UTAMA UNTUK LOGIK SISTEM -->
+    <script>
+        // Simulasi Penyimpanan Data Tempatan (In-Memory)
+        let oprRecords = [];
+        let currentRecordId = null;
+
+        // Struktur Awal KPI jika borang dibuka kosong
+        const defaultKpiItems = [
+            { desc: "Pencapaian peratusan projek mengikut fasa jadual", target: 100, actual: 95 },
+            { desc: "Kecekapan penggunaan bajet yang diperuntukkan", target: 100, actual: 88 }
+        ];
+
+        // Tetapkan tarikh hari ini secara lalai
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set tarikh hari ini
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('opr-date').value = today;
+            
+            // Set tarikh untuk cetakan
+            const formattedToday = new Date().toLocaleDateString('ms-MY', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            document.querySelectorAll('.current-date-span').forEach(el => el.textContent = formattedToday);
+
+            // Muatkan data contoh jika simpanan kosong
+            loadMockData();
+            
+            // Render Papan Pemuka
+            renderDashboard();
+            
+            // Jalankan lucide icons
+            lucide.createIcons();
+
+            // Link nama pegawai dengan tandatangan bahagian bawah secara automatik
+            const officerNameInput = document.getElementById('officer-name');
+            const signeeName = document.getElementById('signee-name');
+            officerNameInput.addEventListener('input', () => {
+                signeeName.textContent = officerNameInput.value || "...................................................";
+            });
+        });
+
+        // Contoh Laporan Awal (Mock Data)
+        function loadMockData() {
+            oprRecords = [
+                {
+                    id: "OPR-2026-001",
+                    deptName: "Jabatan Kerja Raya",
+                    unitName: "Unit Jalan & Jambatan",
+                    officerName: "Ir. Ahmad Shahrir",
+                    date: "2026-05-10",
+                    projectTitle: "Penyelenggaraan Jalan Protokol Miri-Bintulu",
+                    objective: "Menaik taraf kualiti jalan raya bagi meningkatkan keselamatan pengguna jalan raya.",
+                    overallStatus: "Memuaskan",
+                    issues: "Kelewatan penghantaran bahan tar mentah akibat masalah cuaca di pelabuhan.",
+                    mitigation: "Menggunakan pembekal alternatif tempatan untuk fasa segera.",
+                    kpi: [
+                        { desc: "Peratusan pematuhan piawaian jalan baru", target: 100, actual: 98 },
+                        { desc: "Kepuasan komuniti setempat", target: 90, actual: 85 }
+                    ]
+                },
+                {
+                    id: "OPR-2026-002",
+                    deptName: "Kementerian Kesihatan",
+                    unitName: "Unit Farmasi Logistik",
+                    officerName: "Dr. Aishah Radzi",
+                    date: "2026-05-15",
+                    projectTitle: "Sistem Pengedaran Vaksin Kebangsaan 2.0",
+                    objective: "Memastikan pengedaran vaksin tepat pada masa di seluruh klinik luar bandar.",
+                    overallStatus: "Sangat Memuaskan",
+                    issues: "Tiada masalah ketara yang dihadapi.",
+                    mitigation: "Pemantauan berkala menggunakan sistem penjejakan IoT GPS.",
+                    kpi: [
+                        { desc: "Penghantaran tepat dalam tempoh 24 jam", target: 95, actual: 97 },
+                        { desc: "Suhu storan terkawal (2-8 darjah)", target: 100, actual: 100 }
+                    ]
+                }
+            ];
+        }
+
+        // Fungsi Menukar Paparan (Dashboard <=> Form)
+        function switchView(viewName) {
+            const dashboard = document.getElementById('dashboard-view');
+            const formView = document.getElementById('form-view');
+
+            if (viewName === 'dashboard') {
+                dashboard.classList.remove('hidden');
+                formView.classList.add('hidden');
+                renderDashboard();
+            } else {
+                dashboard.classList.add('hidden');
+                formView.classList.remove('hidden');
+            }
+        }
+
+        // Sediakan Borang Baru Kosong
+        function createNewOpr() {
+            currentRecordId = null;
+            document.getElementById('opr-form').reset();
+            
+            // Set semula ID rujukan cetak
+            document.getElementById('ref-no-print').textContent = "OPR-NEW";
+            
+            // Tarikh Hari ini
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('opr-date').value = today;
+
+            // Masukkan KPI asalan
+            const kpiBody = document.getElementById('kpi-tbody');
+            kpiBody.innerHTML = '';
+            defaultKpiItems.forEach(item => {
+                addKpiRow(item.desc, item.target, item.actual);
+            });
+
+            document.getElementById('signee-name').textContent = "...................................................";
+
+            switchView('form');
+        }
+
+        // Tambah Baris KPI Baru
+        function addKpiRow(desc = "", target = 100, actual = 0) {
+            const tbody = document.getElementById('kpi-tbody');
+            const rowCount = tbody.rows.length;
+            const tr = document.createElement('tr');
+            tr.className = "hover:bg-slate-50 transition";
+            
+            tr.innerHTML = `
+                <td class="p-2 border-r border-slate-200">
+                    <input type="text" placeholder="Masukkan deskripsi penunjuk prestasi..." value="${desc}" required class="kpi-desc w-full px-2 py-1 text-sm border border-slate-100 rounded focus:outline-none focus:ring-1 focus:ring-blue-500">
+                </td>
+                <td class="p-2 border-r border-slate-200">
+                    <input type="number" value="${target}" oninput="calcPerformance(this)" required class="kpi-target w-full text-center px-1 py-1 text-sm border border-slate-100 rounded focus:outline-none focus:ring-1 focus:ring-blue-500">
+                </td>
+                <td class="p-2 border-r border-slate-200">
+                    <input type="number" value="${actual}" oninput="calcPerformance(this)" required class="kpi-actual w-full text-center px-1 py-1 text-sm border border-slate-100 rounded focus:outline-none focus:ring-1 focus:ring-blue-500">
+                </td>
+                <td class="p-2 border-r border-slate-200 text-center font-semibold text-slate-700 kpi-perf">
+                    ${target > 0 ? Math.round((actual / target) * 100) : 0}%
+                </td>
+                <td class="p-2 text-center no-print">
+                    <button type="button" onclick="this.closest('tr').remove()" class="text-rose-500 hover:text-rose-700 p-1">
+                        <i data-lucide="trash-2" class="w-4 h-4 mx-auto"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+            lucide.createIcons();
+        }
+
+        // Kira peratusan prestasi KPI secara automatik semasa ditaip
+        function calcPerformance(input) {
+            const tr = input.closest('tr');
+            const target = parseFloat(tr.querySelector('.kpi-target').value) || 0;
+            const actual = parseFloat(tr.querySelector('.kpi-actual').value) || 0;
+            const perfCell = tr.querySelector('.kpi-perf');
+
+            let percentage = 0;
+            if (target > 0) {
+                percentage = Math.round((actual / target) * 100);
+            }
+            perfCell.textContent = percentage + "%";
+        }
+
+        // Simpan Borang OPR ke dalam senarai records
+        function saveOpr(event) {
+            event.preventDefault();
+
+            // Pengesahan ringkas borang wajib
+            const deptName = document.getElementById('dept-name').value;
+            const unitName = document.getElementById('unit-name').value;
+            const officerName = document.getElementById('officer-name').value;
+            const projectTitle = document.getElementById('project-title').value;
+            const objective = document.getElementById('project-objective').value;
+            const oprDate = document.getElementById('opr-date').value;
+            const overallStatus = document.getElementById('overall-status').value;
+            const issues = document.getElementById('issues-encountered').value;
+            const mitigation = document.getElementById('mitigation-plan').value;
+
+            if(!deptName || !unitName || !officerName || !projectTitle) {
+                showToast("Sila isi semua maklumat utama bertanda wajib!", true);
+                return;
+            }
+
+            // Dapatkan semua data KPI dari jadual
+            const kpiRows = document.querySelectorAll('#kpi-tbody tr');
+            const kpiData = [];
+            kpiRows.forEach(row => {
+                const desc = row.querySelector('.kpi-desc').value;
+                const target = parseFloat(row.querySelector('.kpi-target').value) || 0;
+                const actual = parseFloat(row.querySelector('.kpi-actual').value) || 0;
+                kpiData.push({ desc, target, actual });
+            });
+
+            if (currentRecordId) {
+                // Kemas kini rekod sedia ada
+                const index = oprRecords.findIndex(r => r.id === currentRecordId);
+                if (index !== -1) {
+                    oprRecords[index] = {
+                        id: currentRecordId,
+                        deptName, unitName, officerName, date: oprDate,
+                        projectTitle, objective, overallStatus, issues, mitigation,
+                        kpi: kpiData
+                    };
+                }
+                showToast("Laporan e-OPR berjaya dikemas kini!");
+            } else {
+                // Buat rekod baharu
+                const newId = "OPR-2026-" + String(oprRecords.length + 1).padStart(3, '0');
+                oprRecords.push({
+                    id: newId,
+                    deptName, unitName, officerName, date: oprDate,
+                    projectTitle, objective, overallStatus, issues, mitigation,
+                    kpi: kpiData
+                });
+                document.getElementById('ref-no-print').textContent = newId;
+                showToast("Laporan e-OPR baru berjaya disimpan!");
+            }
+
+            // Kembali ke dashboard selepas simpan
+            setTimeout(() => {
+                switchView('dashboard');
+            }, 1000);
+        }
+
+        // Paparkan Laporan Terpilih untuk Diedit / Dicetak
+        function viewOpr(id) {
+            const record = oprRecords.find(r => r.id === id);
+            if (!record) return;
+
+            currentRecordId = record.id;
+
+            // Set data ke input borang
+            document.getElementById('dept-name').value = record.deptName;
+            document.getElementById('unit-name').value = record.unitName;
+            document.getElementById('officer-name').value = record.officerName;
+            document.getElementById('signee-name').textContent = record.officerName;
+            document.getElementById('opr-date').value = record.date;
+            document.getElementById('project-title').value = record.projectTitle;
+            document.getElementById('project-objective').value = record.objective;
+            document.getElementById('overall-status').value = record.overallStatus;
+            document.getElementById('issues-encountered').value = record.issues || "";
+            document.getElementById('mitigation-plan').value = record.mitigation || "";
+            document.getElementById('ref-no-print').textContent = record.id;
+
+            // Set data KPI
+            const kpiBody = document.getElementById('kpi-tbody');
+            kpiBody.innerHTML = '';
+            if (record.kpi && record.kpi.length > 0) {
+                record.kpi.forEach(item => {
+                    addKpiRow(item.desc, item.target, item.actual);
+                });
+            } else {
+                defaultKpiItems.forEach(item => {
+                    addKpiRow(item.desc, item.target, item.actual);
+                });
+            }
+
+            switchView('form');
+        }
+
+        // Hapus Rekod
+        function deleteOpr(id, event) {
+            event.stopPropagation(); // Elak trigger klik baris
+            if (confirm("Adakah anda pasti untuk menghapuskan laporan e-OPR ini?")) {
+                oprRecords = oprRecords.filter(r => r.id !== id);
+                renderDashboard();
+                showToast("Rekod berjaya dipadamkan.", true);
+            }
+        }
+
+        // Paparkan Status Toast / Notifikasi
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-msg');
+            
+            toastMsg.textContent = message;
+            if (isError) {
+                toast.classList.remove('bg-emerald-600');
+                toast.classList.add('bg-rose-600');
+            } else {
+                toast.classList.remove('bg-rose-600');
+                toast.classList.add('bg-emerald-600');
+            }
+
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Kira Purata Prestasi Keseluruhan KPI
+        function calculateAverageKPI() {
+            if (oprRecords.length === 0) return 0;
+            let grandTotal = 0;
+            let kpiCount = 0;
+
+            oprRecords.forEach(rec => {
+                if(rec.kpi) {
+                    rec.kpi.forEach(kpi => {
+                        if (kpi.target > 0) {
+                            grandTotal += (kpi.actual / kpi.target) * 100;
+                            kpiCount++;
+                        }
+                    });
+                }
+            });
+
+            return kpiCount > 0 ? Math.round(grandTotal / kpiCount) : 0;
+        }
+
+        // Render Papan Pemuka
+        function renderDashboard(recordsToDisplay = oprRecords) {
+            const tbody = document.getElementById('reports-table-body');
+            tbody.innerHTML = '';
+
+            // Kemas kini widget statistik
+            document.getElementById('total-reports').textContent = recordsToDisplay.length;
+            document.getElementById('average-perf').textContent = calculateAverageKPI() + "%";
+            
+            let issuesCount = 0;
+            recordsToDisplay.forEach(r => {
+                if (r.issues && r.issues.trim() !== "" && r.issues !== "Tiada") issuesCount++;
+            });
+            document.getElementById('total-issues').textContent = issuesCount;
+
+            if (recordsToDisplay.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="p-8 text-center text-slate-400">
+                            <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-2 opacity-50"></i>
+                            Tiada rekod laporan e-OPR ditemui.
+                        </td>
+                    </tr>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            recordsToDisplay.forEach(record => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-slate-100 hover:bg-slate-50 transition cursor-pointer";
+                tr.setAttribute('onclick', `viewOpr('${record.id}')`);
+
+                // Warna status badge
+                let statusBadge = '';
+                if (record.overallStatus === "Sangat Memuaskan") {
+                    statusBadge = '<span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700">Sangat Memuaskan</span>';
+                } else if (record.overallStatus === "Memuaskan") {
+                    statusBadge = '<span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-50 text-blue-700">Memuaskan</span>';
+                } else if (record.overallStatus === "Sederhana") {
+                    statusBadge = '<span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-50 text-amber-700">Sederhana</span>';
+                } else {
+                    statusBadge = '<span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-rose-50 text-rose-700">Kritikal</span>';
+                }
+
+                // Format paparan tarikh yang lebih santai
+                const formattedDate = new Date(record.date).toLocaleDateString('ms-MY', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                });
+
+                tr.innerHTML = `
+                    <td class="p-4">
+                        <div class="font-semibold text-slate-900">${record.id}</div>
+                        <div class="text-xs text-slate-400">${formattedDate}</div>
+                    </td>
+                    <td class="p-4">
+                        <div class="font-medium text-slate-700">${record.deptName}</div>
+                        <div class="text-xs text-slate-400">${record.unitName}</div>
+                    </td>
+                    <td class="p-4">
+                        <div class="font-medium text-slate-700 max-w-xs truncate">${record.projectTitle}</div>
+                        <div class="text-xs text-slate-400 max-w-xs truncate">${record.objective}</div>
+                    </td>
+                    <td class="p-4">
+                        ${statusBadge}
+                    </td>
+                    <td class="p-4 text-right no-print" onclick="event.stopPropagation()">
+                        <div class="flex justify-end gap-2">
+                            <button onclick="viewOpr('${record.id}')" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Lihat & Cetak">
+                                <i data-lucide="eye" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="deleteOpr('${record.id}', event)" class="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Padam">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            lucide.createIcons();
+        }
+
+        // Penapis Larian Carian (Filter)
+        function filterReports() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            const filtered = oprRecords.filter(r => {
+                return r.deptName.toLowerCase().includes(query) || 
+                       r.unitName.toLowerCase().includes(query) || 
+                       r.projectTitle.toLowerCase().includes(query) || 
+                       r.officerName.toLowerCase().includes(query) ||
+                       r.id.toLowerCase().includes(query);
+            });
+            renderDashboard(filtered);
+        }
+    </script>
+</body>
+</html>
